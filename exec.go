@@ -81,7 +81,7 @@ func NewMockExecutor(runCallback func(command string, args ...string) (string, i
 	return &MockExecutor{runCallback}
 }
 
-// RunLine parses the given command line and runs it.
+// RunLine parses the given command line and runs it using the DefaultExecutor.
 func RunLine(commandLine string) (string, int, errors.Error) {
 	return DefaultExecutor.RunLine(commandLine)
 }
@@ -95,7 +95,7 @@ func runLine(commandLine string) (string, int, errors.Error) {
 	return run(command, args...)
 }
 
-// Run executes a command with given arguments.
+// Run executes a command with given arguments using the DefaultExecutor.
 func Run(command string, args ...string) (string, int, errors.Error) {
 	return DefaultExecutor.Run(command, args...)
 }
