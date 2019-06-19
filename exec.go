@@ -21,20 +21,86 @@ var (
 	RunError = errors.New("RunError").Msg("Could not execute command")
 	// ParseError occurs when a malformed command line was encountered.
 	ParseError = errors.New("ParseError").Msg("Unable to parse command line")
+	// DefaultExecutor denotes the Executor that is used by default for Run and RunLine commands.
+	DefaultExecutor Executor
 )
 
-// RunLine parses the given command line and runs it.
-func RunLine(commandLine string) (string, int, errors.Error) {
+func init() {
+	DefaultExecutor = NewLocalExecutor()
+}
+
+// Executor represents the interface for shell command execution.
+type Executor interface {
+	// RunLine executes an escaped single string command line.
+	RunLine(commandLine string) (string, int, errors.Error)
+	// Run executes a command line with separated arguments.
+	Run(command string, args ...string) (string, int, errors.Error)
+}
+
+// LocalExecutor is used to execute commands on the local shell.
+type LocalExecutor struct {
+}
+
+// RunLine executes an escaped single string command line.
+func (e *LocalExecutor) RunLine(commandLine string) (string, int, errors.Error) {
+	return runLine(commandLine)
+}
+
+// Run executes a command line with separated arguments.
+func (e *LocalExecutor) Run(command string, args ...string) (string, int, errors.Error) {
+	return run(command, args...)
+}
+
+// NewLocalExecutor returns an executor for the local shell.
+func NewLocalExecutor() *LocalExecutor {
+	return &LocalExecutor{}
+}
+
+// MockExecutor offers functionality to mock and debug executed commands.
+type MockExecutor struct {
+	RunCallback func(command string, args ...string) (string, int, errors.Error)
+}
+
+// RunLine parses the command and calls RunCallback.
+func (e *MockExecutor) RunLine(commandLine string) (string, int, errors.Error) {
 	command, args, err := Parse(commandLine)
 	if err != nil {
 		return "", 0, err
 	}
 
-	return Run(command, args...)
+	return e.RunCallback(command, args...)
+}
+
+// Run calls runCallback.
+func (e *MockExecutor) Run(command string, args ...string) (string, int, errors.Error) {
+	return e.RunCallback(command, args...)
+}
+
+// NewMockExecutor returns an executor for the local shell.
+func NewMockExecutor(runCallback func(command string, args ...string) (string, int, errors.Error)) *MockExecutor {
+	return &MockExecutor{runCallback}
+}
+
+// RunLine parses the given command line and runs it.
+func RunLine(commandLine string) (string, int, errors.Error) {
+	return DefaultExecutor.RunLine(commandLine)
+}
+
+func runLine(commandLine string) (string, int, errors.Error) {
+	command, args, err := Parse(commandLine)
+	if err != nil {
+		return "", 0, err
+	}
+
+	return run(command, args...)
 }
 
 // Run executes a command with given arguments.
 func Run(command string, args ...string) (string, int, errors.Error) {
+	return DefaultExecutor.Run(command, args...)
+}
+
+func run(command string, args ...string) (string, int, errors.Error) {
 	cmd := exec.Command(command, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {

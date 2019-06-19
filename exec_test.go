@@ -189,6 +189,67 @@ func TestGetCommandLineNoQuotes(t *testing.T) {
 }
 
 /* ############################################# */
+/* ###                Objects                ### */
+/* ############################################# */
+
+func TestLocalExecutorRun(t *testing.T) {
+	e := NewLocalExecutor()
+	out, code, err := e.Run(path("success.sh"))
+	assert.NoError(t, err)
+	assert.Equal(t, 0, code)
+	assert.True(t, strings.Contains(out, "some test output here"))
+}
+
+func TestLocalExecutorRunLine(t *testing.T) {
+	e := NewLocalExecutor()
+	out, code, err := e.RunLine(Quote(path("success.sh")))
+	assert.NoError(t, err)
+	assert.Equal(t, 0, code)
+	assert.True(t, strings.Contains(out, "some test output here"))
+}
+
+func TestMockExecutorRun(t *testing.T) {
+	var lastCommand string
+	var lastArgs []string
+	e := NewMockExecutor(func(command string, args ...string) (string, int, errors.Error) {
+		lastCommand = command
+		lastArgs = args
+		return "foobar", 42, errors.GenericError.Make()
+	})
+	out, code, err := e.Run(path("success.sh"), "foo", "bar")
+	assert.Equal(t, "foobar", out)
+	assert.True(t, errors.InstanceOf(err, errors.GenericError))
+	assert.Equal(t, 42, code)
+	assert.Equal(t, path("success.sh"), lastCommand)
+	assert.Equal(t, []string{"foo", "bar"}, lastArgs)
+}
+
+func TestMockExecutorRunLine(t *testing.T) {
+	var lastCommand string
+	var lastArgs []string
+	e := NewMockExecutor(func(command string, args ...string) (string, int, errors.Error) {
+		lastCommand = command
+		lastArgs = args
+		return "foobar", 42, errors.GenericError.Make()
+	})
+	out, code, err := e.RunLine(path("success.sh") + " foo bar")
+	assert.Equal(t, "foobar", out)
+	assert.True(t, errors.InstanceOf(err, errors.GenericError))
+	assert.Equal(t, 42, code)
+	assert.Equal(t, path("success.sh"), lastCommand)
+	assert.Equal(t, []string{"foo", "bar"}, lastArgs)
+}
+
+func TestMockExecutorRunLineParseFail(t *testing.T) {
+	e := NewMockExecutor(func(command string, args ...string) (string, int, errors.Error) {
+		assert.Fail(t, "Callback should not be executed on parse fail")
+		return "", 0, nil
+	})
+	_, _, err := e.RunLine(Quote(path("args.sh")) + ` "foo test space" "bar`)
+	assert.True(t, errors.InstanceOf(err, ParseError))
+}
+
+/* ############################################# */
 /* ###                Helper                 ### */
 /* ############################################# */
 
