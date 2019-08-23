@@ -17,10 +17,12 @@ const (
 )
 
 var (
-	// RunError occurs when a command could not be executed.
-	RunError = errors.New("RunError").Msg("Could not execute command")
-	// ParseError occurs when a malformed command line was encountered.
-	ParseError = errors.New("ParseError").Msg("Unable to parse command line")
+	// ErrRun occurs when a command could not be executed.
+	ErrRun = errors.New("Could not execute command")
+	// ErrReturnCode occurs when a command was executed but returned with a non-zero exit code.
+	ErrReturnCode = errors.New("Process returned with code %d")
+	// ErrParse occurs when a malformed command line was encountered.
+	ErrParse = errors.New("Unable to parse command line")
 	// DefaultExecutor denotes the Executor that is used by default for Run and RunLine commands.
 	DefaultExecutor Executor
 )
@@ -81,6 +83,18 @@ func NewMockExecutor(runCallback func(command string, args ...string) (string, i
 	return &MockExecutor{runCallback}
 }
 
+// ShouldRunLine executes the given command using RunLine but returns an error for non-zero return codes.
+func ShouldRunLine(commandLine string) (string, errors.Error) {
+	result, code, err := RunLine(commandLine)
+	if err != nil {
+		return "", err
+	}
+	if code != 0 {
+		return result, ErrReturnCode.Args(code).Make()
+	}
+	return result, nil
+}
+
 // RunLine parses the given command line and runs it using the DefaultExecutor.
 func RunLine(commandLine string) (string, int, errors.Error) {
 	return DefaultExecutor.RunLine(commandLine)
@@ -93,6 +107,18 @@ func runLine(commandLine string) (string, int, errors.Error) {
 	}
 
 	return run(command, args...)
+}
+
+// ShouldRun executes the given command using Run but returns an error for non-zero return codes.
+func ShouldRun(command string, args ...string) (string, errors.Error) {
+	result, code, err := Run(command, args...)
+	if err != nil {
+		return "", err
+	}
+	if code != 0 {
+		return result, ErrReturnCode.Args(code).Make()
+	}
+	return result, nil
 }
 
 // Run executes a command with given arguments using the DefaultExecutor.
@@ -111,7 +137,7 @@ func run(command string, args ...string) (string, int, errors.Error) {
 				return string(output), s.ExitStatus(), nil
 			}
 		}
-		return string(output), 0, RunError.Make().Cause(err)
+		return string(output), 0, ErrRun.Make().Cause(err)
 	}
 
 	return string(output), 0, nil
@@ -130,7 +156,7 @@ func Parse(commandLine string) (string, []string, errors.Error) {
 		return "", nil, err
 	}
 	if len(parts) == 0 {
-		return "", nil, ParseError.Make().Msg("Unexpected end of command line")
+		return "", nil, ErrParse.Make().Msg("Unexpected end of command line")
 	} else if len(parts) == 1 {
 		return parts[0], nil, nil
 	} else {
@@ -155,10 +181,10 @@ func split(str string) ([]string, errors.Error) {
 		if r == eol {
 			if i < (len(runes) - 1) {
 				// EOL is ONLY allowed as last char
-				return nil, ParseError.Make().Msg("Invalid 0 char in command line")
+				return nil, ErrParse.Make().Msg("Invalid 0 char in command line")
 			} else if state != parseDefault || escape {
 				// last char (EOL) reached but still in quote?
-				return nil, ParseError.Make().Msg("Unexpected end of command line")
+				return nil, ErrParse.Make().Msg("Unexpected end of command line")
 			}
 		}
 

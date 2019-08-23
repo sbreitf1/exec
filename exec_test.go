@@ -36,7 +36,24 @@ func TestRunFail(t *testing.T) {
 
 func TestRunError(t *testing.T) {
 	_, _, err := Run(path("noexec.txt"))
-	assert.True(t, errors.InstanceOf(err, RunError))
+	assert.True(t, errors.InstanceOf(err, ErrRun))
+}
+
+func TestShouldRunSuccess(t *testing.T) {
+	out, err := ShouldRun(path("success.sh"))
+	assert.NoError(t, err)
+	assert.True(t, strings.Contains(out, "some test output here"))
+}
+
+func TestShouldRunFail(t *testing.T) {
+	out, err := ShouldRun(path("fail.sh"))
+	assert.True(t, errors.InstanceOf(err, ErrReturnCode))
+	assert.True(t, strings.Contains(out, "error output"))
+}
+
+func TestShouldRunError(t *testing.T) {
+	_, err := ShouldRun(path("noexec.sh"))
+	assert.True(t, errors.InstanceOf(err, ErrRun))
 }
 
 /* ############################################# */
@@ -115,27 +132,27 @@ func TestParseQuoteEscape(t *testing.T) {
 
 func TestParseEmpty(t *testing.T) {
 	_, _, err := Parse(``)
-	assert.True(t, errors.InstanceOf(err, ParseError))
+	assert.True(t, errors.InstanceOf(err, ErrParse))
 }
 
 func TestParseEscapeEnd(t *testing.T) {
 	_, _, err := Parse(`newcommand \`)
-	assert.True(t, errors.InstanceOf(err, ParseError))
+	assert.True(t, errors.InstanceOf(err, ErrParse))
 }
 
 func TestParseDoubleQuoteFail(t *testing.T) {
 	_, _, err := Parse(`newcommand "test`)
-	assert.True(t, errors.InstanceOf(err, ParseError))
+	assert.True(t, errors.InstanceOf(err, ErrParse))
 }
 
 func TestParseSingleQuoteFail(t *testing.T) {
 	_, _, err := Parse(`newcommand 'test`)
-	assert.True(t, errors.InstanceOf(err, ParseError))
+	assert.True(t, errors.InstanceOf(err, ErrParse))
 }
 
 func TestParseZeroRune(t *testing.T) {
 	_, _, err := Parse("newcommand test \000")
-	assert.True(t, errors.InstanceOf(err, ParseError))
+	assert.True(t, errors.InstanceOf(err, ErrParse))
 }
 
 /* ############################################# */
@@ -166,12 +183,29 @@ func TestRunLineFail(t *testing.T) {
 
 func TestRunLineError(t *testing.T) {
 	_, _, err := RunLine(Quote(path("noexec.txt")))
-	assert.NotNil(t, err)
+	assert.True(t, errors.InstanceOf(err, ErrRun))
 }
 
 func TestRunLineParseError(t *testing.T) {
 	_, _, err := RunLine(Quote(path("args.sh")) + ` "foo test space" "bar`)
-	assert.True(t, errors.InstanceOf(err, ParseError))
+	assert.True(t, errors.InstanceOf(err, ErrParse))
+}
+
+func TestShouldRunLineSuccess(t *testing.T) {
+	out, err := ShouldRunLine(Quote(path("success.sh")))
+	assert.NoError(t, err)
+	assert.True(t, strings.Contains(out, "some test output here"))
+}
+
+func TestShouldRunLineFail(t *testing.T) {
+	out, err := ShouldRunLine(Quote(path("fail.sh")))
+	assert.True(t, errors.InstanceOf(err, ErrReturnCode))
+	assert.True(t, strings.Contains(out, "error output"))
+}
+
+func TestShouldRunLineError(t *testing.T) {
+	_, err := ShouldRunLine(Quote(path("noexec.txt")))
+	assert.True(t, errors.InstanceOf(err, ErrRun))
 }
 
 /* ############################################# */
@@ -246,7 +280,7 @@ func TestMockExecutorRunLineParseFail(t *testing.T) {
 		return "", 0, nil
 	})
 	_, _, err := e.RunLine(Quote(path("args.sh")) + ` "foo test space" "bar`)
-	assert.True(t, errors.InstanceOf(err, ParseError))
+	assert.True(t, errors.InstanceOf(err, ErrParse))
 }
 
 /* ############################################# */
